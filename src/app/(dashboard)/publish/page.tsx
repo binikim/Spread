@@ -1042,7 +1042,7 @@ export default function PublishPage() {
 
           {/* 2단계: 유튜브 제목 입력 */}
           <div className="form-group">
-            <label htmlFor="input-title">제목 {platforms.find(p => p.id === 'youtube')?.enabled && p.realOAuth && <span style={{color:'#ef4444'}}>* (YouTube 실제 발행시 필수)</span>}</label>
+            <label htmlFor="input-title">제목 {(() => { const yt = platforms.find(p => p.id === 'youtube'); return yt?.enabled && yt?.realOAuth; })() && <span style={{color:'#ef4444'}}>* (YouTube 실제 발행시 필수)</span>}</label>
             <input
               id="input-title"
               type="text"

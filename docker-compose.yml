@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: spread-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: always
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spread-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=file:/app/prisma/data/dev.db
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-google-oauth-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-google-oauth-client-secret}
+      - YOUTUBE_REDIRECT_URI=${YOUTUBE_REDIRECT_URI:-http://localhost:3000/api/youtube/oauth/callback}
+    volumes:
+      - db-data:/app/prisma/data
+    command: sh -c "npx prisma db push && npm run start"
+    restart: always
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spread-worker
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=file:/app/prisma/data/dev.db
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-google-oauth-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-google-oauth-client-secret}
+      - YOUTUBE_REDIRECT_URI=${YOUTUBE_REDIRECT_URI:-http://localhost:3000/api/youtube/oauth/callback}
+    volumes:
+      - db-data:/app/prisma/data
+    command: npm run worker
+    restart: always
+
+volumes:
+  redis-data:
+  db-data:
