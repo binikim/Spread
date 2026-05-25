@@ -188,16 +188,6 @@ export default function ConnectionsPage() {
   const connectedCount = connections.filter((conn) => conn.connected).length;
 
   const handleConnect = (id: PlatformId) => {
-    if (id === 'youtube') {
-      const confirmRealOAuth = window.confirm(
-        '실제 Google OAuth 연동을 사용하시겠습니까?\n\n[확인]을 누르면 실제 구글 로그인 페이지로 이동합니다 (환경 변수 GOOGLE_CLIENT_ID가 설정되어 있어야 합니다).\n[취소]를 누르면 간편한 테스트 모의 연결 창이 열립니다.'
-      );
-      if (confirmRealOAuth) {
-        window.location.href = '/api/youtube/oauth/start';
-        return;
-      }
-    }
-
     setPendingPlatform(id);
     const width = 460;
     const height = 620;

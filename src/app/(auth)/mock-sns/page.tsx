@@ -299,6 +299,34 @@ function MockSnsContent() {
             {isAuthorizing ? '연결 중...' : details.buttonText}
           </button>
 
+          {platform === 'youtube' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.opener) {
+                  window.opener.location.href = '/api/youtube/oauth/start';
+                  window.close();
+                } else {
+                  window.location.href = '/api/youtube/oauth/start';
+                }
+              }}
+              style={{
+                width: '100%',
+                marginTop: '0.75rem',
+                border: `1px solid ${details.dark ? '#27272a' : '#cbd5e1'}`,
+                borderRadius: '8px',
+                padding: '0.65rem',
+                background: 'transparent',
+                color: mutedColor,
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 'bold',
+              }}
+            >
+              🔐 실제 Google OAuth 연동하기 (API 키 필요)
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => (window.opener ? window.close() : (window.location.href = '/connections'))}
