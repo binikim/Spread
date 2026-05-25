@@ -2,6 +2,9 @@
   "name": "arc-publisher",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "uuid": "^11.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
