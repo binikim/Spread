@@ -2,6 +2,13 @@
 
 > **YouTube, Instagram, Threads, TikTok**에 멀티 채널 콘텐츠를 한 번에 업로드하고 관리하는 원클릭 동시 발행 플랫폼입니다.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbinikim%2FSpread)
+
+### 💡 API 키 없는 하이브리드(Hybrid) 데모 모드 지원
+본 서비스는 실제 API 키나 구글 OAuth 연동 설정 없이도 **인터넷 브라우저의 로컬 스토리지(LocalStorage)를 통해 모든 기능을 모의 연동 및 가상 업로드 시뮬레이션으로 테스트**할 수 있도록 설계되었습니다. 
+* **구글 API 키가 없을 때**: 유튜브 및 기타 SNS 연결 시 **[취소(가상 연동)]**를 선택하면 API 키 없이 모든 기능을 즉시 사용할 수 있습니다.
+* **구글 API 키가 있을 때**: 유튜브 연결 시 **[확인]**을 누르고 구글 로그인을 거치면 실제 유튜브 계정에 동영상이 실시간 업로드됩니다.
+
 ---
 
 ## 🛠 기술 스택
