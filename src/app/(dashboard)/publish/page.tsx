@@ -5,8 +5,6 @@ import React, { useState, useRef, useEffect } from 'react';
 // 플랫폼 정의
 type Platform = 'youtube' | 'instagram' | 'threads' | 'tiktok';
 
-const REAL_UPLOAD_ENABLED = true;
-
 interface PlatformStatus {
   id: Platform;
   name: string;
@@ -15,6 +13,7 @@ interface PlatformStatus {
   enabled: boolean;
   connected: boolean;
   requiredFileType: 'video' | 'image' | 'any';
+  realOAuth?: boolean;
 }
 
 export default function PublishPage() {
@@ -32,13 +31,15 @@ export default function PublishPage() {
           const next = prev.map(p => {
             const match = parsed.find((c: any) => c.id === p.id);
             const isConnected = match ? match.connected : false;
+            const isReal = match ? Boolean(match.realOAuth) : false;
             if (isConnected && !firstConnected) {
               firstConnected = p.id;
             }
             return {
               ...p,
               connected: isConnected,
-              enabled: false
+              enabled: false,
+              realOAuth: isReal
             };
           });
           if (firstConnected) {
@@ -173,24 +174,22 @@ export default function PublishPage() {
       return;
     }
 
-    if (REAL_UPLOAD_ENABLED) {
-      const unsupportedPlatforms = enabledPlatforms.filter(p => p.id !== 'youtube');
-      if (unsupportedPlatforms.length > 0) {
-        alert('현재 실제 업로드는 YouTube만 연결되어 있습니다. Instagram, Threads, TikTok은 각 플랫폼 OAuth/API 연동을 추가해야 합니다.');
+    const realPlatforms = enabledPlatforms.filter(p => p.realOAuth);
+    const mockPlatforms = enabledPlatforms.filter(p => !p.realOAuth);
+
+    // 유튜브 실제 업로드 검증
+    if (realPlatforms.some(p => p.id === 'youtube')) {
+      if (!title) {
+        alert('YouTube Shorts 실제 발행을 위해 제목을 입력해 주세요!');
         return;
       }
-
-      if (!title && enabledPlatforms.some(p => p.id === 'youtube')) {
-        alert('YouTube Shorts 발행을 위해 제목을 입력해 주세요!');
-        return;
-      }
-
-      if (enabledPlatforms.some(p => p.id === 'youtube') && (!selectedFile || fileType !== 'video')) {
-        alert('YouTube 업로드에는 MP4/WebM 같은 동영상 파일이 필요합니다.');
+      if (!selectedFile || fileType !== 'video') {
+        alert('YouTube 실제 업로드에는 MP4/WebM 같은 동영상 파일이 필요합니다.');
         return;
       }
     } else {
-      if (!title && enabledPlatforms.some(p => p.id === 'youtube')) {
+      // 유튜브 가상 업로드 검증
+      if (enabledPlatforms.some(p => p.id === 'youtube') && !title) {
         alert('YouTube Shorts 발행을 위해 제목을 입력해 주세요!');
         return;
       }
@@ -208,56 +207,52 @@ export default function PublishPage() {
 
     let youtubeUpload: { videoId: string; url: string } | null = null;
 
-    if (REAL_UPLOAD_ENABLED) {
-      setPublishStep('YouTube 업로드 준비 중...');
-      await delay(500);
+    // 1. 실제 업로드 처리 (구글 API 키가 있어야 연동 완료 가능)
+    for (const platform of realPlatforms) {
+      setPublishStep(`${platform.name} 실제 업로드 중...`);
+      setPublishProgress(prev => ({ ...prev, [platform.id]: 'running' }));
 
-      for (const platform of enabledPlatforms) {
-        setPublishStep(`${platform.name} 업로드 중...`);
-        setPublishProgress(prev => ({ ...prev, [platform.id]: 'running' }));
+      if (platform.id === 'youtube') {
+        try {
+          const formData = new FormData();
+          formData.append('file', selectedFile as File);
+          formData.append('title', title);
+          formData.append('description', `${content}${tags ? `\n\n${tags.split(',').map(t => `#${t.trim().replace(/^#/, '')}`).join(' ')}` : ''}`);
+          formData.append('privacyStatus', 'private');
 
-        if (platform.id === 'youtube') {
-          try {
-            const formData = new FormData();
-            formData.append('file', selectedFile as File);
-            formData.append('title', title);
-            formData.append('description', `${content}${tags ? `\n\n${tags.split(',').map(t => `#${t.trim().replace(/^#/, '')}`).join(' ')}` : ''}`);
-            formData.append('privacyStatus', 'private');
+          const response = await fetch('/api/youtube/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await response.json();
 
-            const response = await fetch('/api/youtube/upload', {
-              method: 'POST',
-              body: formData,
-            });
-            const data = await response.json();
-
-            if (!response.ok) {
-              throw new Error(data.error || 'YouTube 업로드에 실패했습니다.');
-            }
-
-            youtubeUpload = { videoId: data.videoId, url: data.url };
-            setPublishProgress(prev => ({ ...prev, [platform.id]: 'success' }));
-          } catch (error) {
-            setPublishProgress(prev => ({ ...prev, [platform.id]: 'failed' }));
-            setPublishStep(error instanceof Error ? error.message : 'YouTube 업로드에 실패했습니다.');
-            setIsPublishing(false);
-            return;
+          if (!response.ok) {
+            throw new Error(data.error || 'YouTube 업로드에 실패했습니다.');
           }
+
+          youtubeUpload = { videoId: data.videoId, url: data.url };
+          setPublishProgress(prev => ({ ...prev, [platform.id]: 'success' }));
+        } catch (error) {
+          setPublishProgress(prev => ({ ...prev, [platform.id]: 'failed' }));
+          setPublishStep(error instanceof Error ? error.message : 'YouTube 업로드에 실패했습니다.');
+          setIsPublishing(false);
+          return;
         }
       }
-      setPublishStep('YouTube 업로드 완료!');
-    } else {
-      // 데모 모드 (모든 SNS 가상 발행 시뮬레이션)
-      for (const platform of enabledPlatforms) {
-        setPublishStep(`${platform.name} 업로드 중...`);
-        setPublishProgress(prev => ({ ...prev, [platform.id]: 'running' }));
-        await delay(1200); // 업로드 효과 연출
-        setPublishProgress(prev => ({ ...prev, [platform.id]: 'success' }));
-      }
-      setPublishStep('모든 플랫폼 업로드 완료!');
-      
-      if (enabledPlatforms.some(p => p.id === 'youtube')) {
-        youtubeUpload = { videoId: 'mock_youtube_id', url: 'https://www.youtube.com/watch?v=mock_youtube_id' };
-      }
+    }
+
+    // 2. 가상 업로드 처리 (시뮬레이션 - API 키 불필요)
+    for (const platform of mockPlatforms) {
+      setPublishStep(`${platform.name} 가상 업로드 중 (데모 모드)...`);
+      setPublishProgress(prev => ({ ...prev, [platform.id]: 'running' }));
+      await delay(1200); // 로딩 효과 연출
+      setPublishProgress(prev => ({ ...prev, [platform.id]: 'success' }));
+    }
+
+    setPublishStep('업로드 완료!');
+
+    if (!youtubeUpload && enabledPlatforms.some(p => p.id === 'youtube')) {
+      youtubeUpload = { videoId: 'mock_youtube_id', url: 'https://www.youtube.com/watch?v=mock_youtube_id' };
     }
 
     // 로컬 스토리지에 발행 기록 저장
@@ -281,7 +276,7 @@ export default function PublishPage() {
         subtitle: content,
         content: content,
         status: 'success',
-        uploadMode: REAL_UPLOAD_ENABLED ? 'real' : 'mock',
+        uploadMode: realPlatforms.length > 0 ? 'real' : 'mock',
         youtubeVideoId: youtubeUpload?.videoId,
         youtubeUrl: youtubeUpload?.url,
         type: fileType === 'video' ? '영상' : (fileType === 'image' ? '이미지' : '텍스트'),
@@ -1047,7 +1042,7 @@ export default function PublishPage() {
 
           {/* 2단계: 유튜브 제목 입력 */}
           <div className="form-group">
-            <label htmlFor="input-title">제목 {platforms.find(p => p.id === 'youtube')?.enabled && <span style={{color:'#ef4444'}}>* (YouTube 필수)</span>}</label>
+            <label htmlFor="input-title">제목 {platforms.find(p => p.id === 'youtube')?.enabled && p.realOAuth && <span style={{color:'#ef4444'}}>* (YouTube 실제 발행시 필수)</span>}</label>
             <input
               id="input-title"
               type="text"
@@ -1122,15 +1117,15 @@ export default function PublishPage() {
             )}
           </div>
 
-          {!REAL_UPLOAD_ENABLED && (
+          {platforms.some(p => p.enabled && !p.realOAuth) && (
             <div className="demo-mode-notice">
-              현재는 테스트 발행 모드입니다. 성공 처리는 로컬 기록 저장까지만 의미하며, YouTube 채널에는 실제 업로드되지 않습니다.
+              선택한 플랫폼 중 가상 연동(테스트용) 채널이 포함되어 있어 일부 가상 업로드 시뮬레이션으로 진행됩니다.
             </div>
           )}
 
           {/* 원클릭 발행 완료 버튼 */}
           <button className="publish-submit-btn" onClick={handlePublish}>
-            {REAL_UPLOAD_ENABLED ? '한 번에 발행하기' : '테스트 발행 기록 저장'}
+            {platforms.some(p => p.enabled && p.realOAuth) ? '한 번에 발행하기' : '테스트 발행 기록 저장'}
           </button>
         </div>
 
